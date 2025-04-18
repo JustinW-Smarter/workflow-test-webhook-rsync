@@ -1,4 +1,4 @@
-name: 🚀 FTP Deploy naar productie mbv Webhooks en Github Actions
+name: 🚀 Deploy naar productie via rsync webhook
 
 on:
   push:
@@ -11,55 +11,55 @@ jobs:
     environment: Productie
 
     steps:
-      - name: 🔐 Deploy via Webhook
+      - name: 🔐 Trigger rsync LIVE webhook
+        id: trigger_live
         run: |
-          echo "⏳ Start webhook call..."
-          curl -s -X POST https://git.smarter.nl/webhook-actions/webhooks/deploy.php \
+          echo "⏳ Start LIVE rsync webhook call..."
+          RESPONSE=$(curl -s -X POST https://git.smarter.nl/webhook-rsync/webhooks/deploy.php \
             -H "Content-Type: application/json" \
             -H "X-Smarter-Secret: ${{ secrets.WEBHOOK_SECRET }}" \
-            -d '{"ref": "refs/heads/main", "mode": "live"}'
-          echo "✅ Webhook gestart"
+            -d '{"ref": "refs/heads/main", "mode": "live"}')
+          echo "$RESPONSE"
+          echo "live_response=$RESPONSE" >> $GITHUB_OUTPUT
 
-      - name: 🚤 Dry-run rsync test (alleen loggen, geen echte upload)
+      - name: 🧪 Trigger rsync DRY-RUN webhook
+        id: trigger_dryrun
         run: |
-          echo "🔢 Start rsync dry-run..."
-          curl -s -X POST https://git.smarter.nl/webhook-actions/webhooks/deploy.php \
+          echo "🔢 Start DRY-RUN rsync webhook call..."
+          RESPONSE=$(curl -s -X POST https://git.smarter.nl/webhook-rsync/webhooks/deploy.php \
             -H "Content-Type: application/json" \
             -H "X-Smarter-Secret: ${{ secrets.WEBHOOK_SECRET }}" \
-            -d '{"ref": "refs/heads/main", "mode": "dry-run"}'
-          echo "🏋️ Dry-run gestart"
+            -d '{"ref": "refs/heads/main", "mode": "dry-run"}')
+          echo "$RESPONSE"
+          echo "dryrun_response=$RESPONSE" >> $GITHUB_OUTPUT
 
-      - name: 📤 Toon response in Actions (inclusief var_dumps)
+      - name: 📤 Toon rsync responses (live + dry-run)
         run: |
-          RESPONSE=$(curl -s -X POST https://git.smarter.nl/webhook-actions/actions-log-test.php \
-            -H "X-Smarter-Secret: ${{ secrets.WEBHOOK_SECRET }}")
-          echo "---- BEGIN OUTPUT ----"
-          echo "$RESPONSE" 
-          echo "---- END OUTPUT ----"
+          echo "---- RSYNC LIVE OUTPUT ----"
+          echo "${{ steps.trigger_live.outputs.live_response }}"
+          echo "---- RSYNC DRY-RUN OUTPUT ----"
+          echo "${{ steps.trigger_dryrun.outputs.dryrun_response }}"
 
-      - name: 📤 Check webhook response op error
+      - name: 🧠 Analyseer output op errors
         run: |
           set -e
-          RESPONSE=$(curl -s -X POST https://git.smarter.nl/webhook-actions/actions-log-test.php \
-            -H "X-Smarter-Secret: ${{ secrets.WEBHOOK_SECRET }}")
+          ALL_RESPONSES="${{ steps.trigger_live.outputs.live_response }}${{ steps.trigger_dryrun.outputs.dryrun_response }}"
+          echo "$ALL_RESPONSES"
 
-          echo "$RESPONSE"
-
-          # Stop de workflow als er een fatal error of uncaught exception in voorkomt
-          if echo "$RESPONSE" | grep -Ei "(Fatal error|Uncaught exception|syntax error)"; then
+          if echo "$ALL_RESPONSES" | grep -Ei "(Fatal error|Uncaught exception|syntax error)"; then
             echo "❌ Foutmelding gedetecteerd in webhook response"
             exit 1
           fi
 
-      - name: 📅 Download server log (deploy.log)
+      - name: 📥 Download server log (deploy.log)
         run: |
           echo "⬇️ Downloaden van deploy.log..."
-          curl -s https://git.smarter.nl/webhook-actions/webhooks/deploy.log -o deploy.log
+          curl -s https://git.smarter.nl/webhook-rsync/webhooks/deploy.log -o deploy.log
           echo "✅ Logbestand gedownload. Inhoud:"
           cat deploy.log
 
-      - name: 📦 Upload log als artifact
+      - name: 📦 Upload logbestand als artifact
         uses: actions/upload-artifact@v4
         with:
-          name: deploy-log
+          name: deploy-rsync-log
           path: deploy.log
