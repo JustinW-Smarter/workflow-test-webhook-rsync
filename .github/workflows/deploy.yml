@@ -37,11 +37,13 @@ jobs:
         run: |
           echo "---- RSYNC LIVE OUTPUT ----"
           RESPONSE="${{ steps.trigger_live.outputs.live_response }}"
-          echo "$RESPONSE" | jq .
+          # Gebruik printf voor betere output-weergave
+          printf "%s\n" "$RESPONSE" | sed 's/[$begin:math:text$$end:math:text$]/\\\&/g'
 
           echo "---- RSYNC DRY-RUN OUTPUT ----"
           RESPONSE_DRY="${{ steps.trigger_dryrun.outputs.dryrun_response }}"
-          echo "$RESPONSE_DRY" | jq .
+          # Gebruik printf voor betere output-weergave
+          printf "%s\n" "$RESPONSE_DRY" | sed 's/[$begin:math:text$$end:math:text$]/\\\&/g'
 
       - name: 🧠 Analyseer output op errors
         run: |
