@@ -1,0 +1,65 @@
+name: 🚀 FTP Deploy naar productie mbv Webhooks en Github Actions
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: Productie
+
+    steps:
+      - name: 🔐 Deploy via Webhook
+        run: |
+          echo "⏳ Start webhook call..."
+          curl -s -X POST https://git.smarter.nl/webhook-actions/webhooks/deploy.php \
+            -H "Content-Type: application/json" \
+            -H "X-Smarter-Secret: ${{ secrets.WEBHOOK_SECRET }}" \
+            -d '{"ref": "refs/heads/main", "mode": "live"}'
+          echo "✅ Webhook gestart"
+
+      - name: 🚤 Dry-run rsync test (alleen loggen, geen echte upload)
+        run: |
+          echo "🔢 Start rsync dry-run..."
+          curl -s -X POST https://git.smarter.nl/webhook-actions/webhooks/deploy.php \
+            -H "Content-Type: application/json" \
+            -H "X-Smarter-Secret: ${{ secrets.WEBHOOK_SECRET }}" \
+            -d '{"ref": "refs/heads/main", "mode": "dry-run"}'
+          echo "🏋️ Dry-run gestart"
+
+      - name: 📤 Toon response in Actions (inclusief var_dumps)
+        run: |
+          RESPONSE=$(curl -s -X POST https://git.smarter.nl/webhook-actions/actions-log-test.php \
+            -H "X-Smarter-Secret: ${{ secrets.WEBHOOK_SECRET }}")
+          echo "---- BEGIN OUTPUT ----"
+          echo "$RESPONSE" 
+          echo "---- END OUTPUT ----"
+
+      - name: 📤 Check webhook response op error
+        run: |
+          set -e
+          RESPONSE=$(curl -s -X POST https://git.smarter.nl/webhook-actions/actions-log-test.php \
+            -H "X-Smarter-Secret: ${{ secrets.WEBHOOK_SECRET }}")
+
+          echo "$RESPONSE"
+
+          # Stop de workflow als er een fatal error of uncaught exception in voorkomt
+          if echo "$RESPONSE" | grep -Ei "(Fatal error|Uncaught exception|syntax error)"; then
+            echo "❌ Foutmelding gedetecteerd in webhook response"
+            exit 1
+          fi
+
+      - name: 📅 Download server log (deploy.log)
+        run: |
+          echo "⬇️ Downloaden van deploy.log..."
+          curl -s https://git.smarter.nl/webhook-actions/webhooks/deploy.log -o deploy.log
+          echo "✅ Logbestand gedownload. Inhoud:"
+          cat deploy.log
+
+      - name: 📦 Upload log als artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-log
+          path: deploy.log
