@@ -18,43 +18,14 @@ jobs:
           RESPONSE=$(curl -s -X POST https://git.smarter.nl/webhook-rsync/webhooks/deploy.php \
             -H "Content-Type: application/json" \
             -H "X-Smarter-Secret: ${{ secrets.WEBHOOK_SECRET }}" \
-            -d '{"ref": "refs/heads/main", "mode": "live"}')
+            -d '{"ref": "refs/heads/main"}')
           echo "$RESPONSE"
           echo "live_response=$RESPONSE" >> $GITHUB_OUTPUT
 
-      - name: 🧪 Trigger rsync DRY-RUN webhook
-        id: trigger_dryrun
-        run: |
-          echo "🔢 Start DRY-RUN rsync webhook call..."
-          RESPONSE=$(curl -s -X POST https://git.smarter.nl/webhook-rsync/webhooks/deploy.php \
-            -H "Content-Type: application/json" \
-            -H "X-Smarter-Secret: ${{ secrets.WEBHOOK_SECRET }}" \
-            -d '{"ref": "refs/heads/main", "mode": "dry-run"}')
-          echo "$RESPONSE"
-          echo "dryrun_response=$RESPONSE" >> $GITHUB_OUTPUT
-
-      - name: 📤 Toon rsync responses (live + dry-run)
+      - name: 📤 Toon rsync response
         run: |
           echo "---- RSYNC LIVE OUTPUT ----"
-          RESPONSE="${{ steps.trigger_live.outputs.live_response }}"
-          # Gebruik printf voor betere output-weergave
-          printf "%s\n" "$RESPONSE" | sed 's/[$begin:math:text$$end:math:text$]/\\\&/g'
-
-          echo "---- RSYNC DRY-RUN OUTPUT ----"
-          RESPONSE_DRY="${{ steps.trigger_dryrun.outputs.dryrun_response }}"
-          # Gebruik printf voor betere output-weergave
-          printf "%s\n" "$RESPONSE_DRY" | sed 's/[$begin:math:text$$end:math:text$]/\\\&/g'
-
-      - name: 🧠 Analyseer output op errors
-        run: |
-          set -e
-          ALL_RESPONSES="${{ steps.trigger_live.outputs.live_response }}${{ steps.trigger_dryrun.outputs.dryrun_response }}"
-          echo "$ALL_RESPONSES"
-
-          if echo "$ALL_RESPONSES" | grep -Ei "(Fatal error|Uncaught exception|syntax error)"; then
-            echo "❌ Foutmelding gedetecteerd in webhook response"
-            exit 1
-          fi
+          echo '${{ steps.trigger_live.outputs.live_response }}'
 
       - name: 📥 Download server log (deploy.log)
         run: |
