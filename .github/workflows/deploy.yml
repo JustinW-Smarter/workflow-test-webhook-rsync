@@ -36,10 +36,13 @@ jobs:
       - name: 📤 Toon rsync responses (live + dry-run)
         run: |
           echo "---- RSYNC LIVE OUTPUT ----"
-          echo "${{ steps.trigger_live.outputs.live_response }}" | sed 's/"/\\"/g'
+          RESPONSE="${{ steps.trigger_live.outputs.live_response }}"
+          # Gebruik printf voor betere output-weergave
+          printf "%s\n" "$RESPONSE"
+
           echo "---- RSYNC DRY-RUN OUTPUT ----"
           RESPONSE_DRY="${{ steps.trigger_dryrun.outputs.dryrun_response }}"
-          echo "$RESPONSE_DRY"
+          printf "%s\n" "$RESPONSE_DRY"
 
       - name: 🧠 Analyseer output op errors
         run: |
