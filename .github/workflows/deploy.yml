@@ -36,9 +36,11 @@ jobs:
       - name: 📤 Toon rsync responses (live + dry-run)
         run: |
           echo "---- RSYNC LIVE OUTPUT ----"
-          echo "${{ steps.trigger_live.outputs.live_response }}"
+          RESPONSE="${{ steps.trigger_live.outputs.live_response }}"
+          echo "$RESPONSE"
           echo "---- RSYNC DRY-RUN OUTPUT ----"
-          echo "${{ steps.trigger_dryrun.outputs.dryrun_response }}"
+          RESPONSE_DRY="${{ steps.trigger_dryrun.outputs.dryrun_response }}"
+          echo "$RESPONSE_DRY"
 
       - name: 🧠 Analyseer output op errors
         run: |
